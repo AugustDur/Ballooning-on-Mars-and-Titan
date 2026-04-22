@@ -1,10 +1,11 @@
 # Recursivly solving for the velocity of the balloon until it reaches terminal velocity. 
 
-global recursion_depth
-global precision
+global recursion_depth, precision, radius, balloon, velocity
 
-precision = 0.01        # Time interval
-recursion_depth = 120   # Time limit, seconds
+velocity = 0
+
+precision = 0.001        # Time interval
+recursion_depth = 5   # Time limit, seconds
 
 constants = {
     "g": 9.81,                          # Gravitational acceleration, m/s^2
@@ -21,4 +22,29 @@ constants = {
 
 radius = (3 * constants["lambda"]) / (constants["rhom"] - ((constants["Pm"] * (constants["M"]) / (constants["R"] * constants["T"]))))
 
-print(radius)
+balloon = {
+    "Ax": 3.14 * radius**2,
+    "As": 4 * 3.14 * radius**2,
+    "Vol": (4/3) * 3.14 * radius**3
+    }
+
+mass = constants["lambda"] * balloon["As"] + constants["rhog"] * balloon["Vol"]
+
+def solve_acceleration(velocity):
+
+    # a = Fb - mg - Fd / m
+
+    a = (constants['rho'] * balloon["Vol"] * constants["g"] - mass * constants["g"] - constants["Cd"] * constants["rho"] * balloon["Ax"] * velocity**2) / (2 * mass)
+    print(a)
+    
+    return a
+
+def main():
+
+    velocity = 0
+
+    for i in range(int(recursion_depth / precision)):
+        velocity = solve_acceleration(velocity) * precision
+        print(f"Time: {i * precision:.2f} s, Velocity: {velocity:.2f} m/s")
+
+main()
