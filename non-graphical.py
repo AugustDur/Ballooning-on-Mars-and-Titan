@@ -34,7 +34,7 @@ def solve_acceleration(velocity):
 
     # a = Fb - mg - Fd / m
 
-    a = (constants['rho'] * balloon["Vol"] * constants["g"] - mass * constants["g"] - constants["Cd"] * constants["rho"] * balloon["Ax"] * velocity**2) / (2 * mass)
+    a = (constants['rho'] * balloon["Vol"] * constants["g"] - mass * constants["g"] - 0.5 *constants["Cd"] * constants["rho"] * balloon["Ax"] * velocity**2) / (mass)
     print(a)
     
     return a
