@@ -44,7 +44,7 @@ def main():
     velocity = 0
 
     for i in range(int(recursion_depth / precision)):
-        velocity = solve_acceleration(velocity) * precision
+        velocity += solve_acceleration(velocity) * precision
         print(f"Time: {i * precision:.2f} s, Velocity: {velocity:.2f} m/s")
 
 main()
