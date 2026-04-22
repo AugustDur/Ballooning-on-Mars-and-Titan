@@ -35,8 +35,7 @@ def solve_acceleration(velocity):
     # a = Fb - mg - Fd / m
 
     a = (constants['rho'] * balloon["Vol"] * constants["g"] - mass * constants["g"] - 0.5 *constants["Cd"] * constants["rho"] * balloon["Ax"] * velocity**2) / (mass)
-    print(a)
-    
+
     return a
 
 def main():
@@ -45,6 +44,12 @@ def main():
 
     for i in range(int(recursion_depth / precision)):
         velocity += solve_acceleration(velocity) * precision
-        print(f"Time: {i * precision:.2f} s, Velocity: {velocity:.2f} m/s")
+
+        if i % int(0.1 / precision) == 0:  # Print every 0.1 seconds
+            print(f"Time: {i * precision:.2f} s, Velocity: {velocity:.2f} m/s, Acceleration: {solve_acceleration(velocity):.2f} m/s^2")
+        else:
+            pass
+
+    print(f"Terminal Velocity: {velocity:.2f} m/s")
 
 main()
