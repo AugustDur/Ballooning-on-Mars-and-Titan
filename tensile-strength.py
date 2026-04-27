@@ -1,6 +1,6 @@
 global thickness, constants, area_density, multiplier
 
-area_density = 0.7
+area_density = 0
 multiplier = 0
 possible_materials = []
 max_strength = 7000000000
@@ -25,19 +25,17 @@ def compute_tensile_strength(area_density, multiplier):
     thickness = multiplier * area_density  # Thickness of the balloon material, m
     radius = (3 * area_density) / (constants["rhom"] - ((constants["Pm"] * (constants["M"]) / (constants["R"] * constants["T"]))))
     tensile_strength_required = (constants["Pe"] - constants["Pm"]) * radius / (2 * thickness)
-    return tensile_strength_required
+    return tensile_strength_required, radius
 
-for area_density in range (1, 1000):
-    area_density = area_density / 1000
+for area_density in range (100, 10000):
+    area_density = area_density / 10000
     for multiplier in range (1, 300):
         multiplier = multiplier / 100000
-        tensile_strength_required = compute_tensile_strength(area_density, multiplier)
+        tensile_strength_required, radius = compute_tensile_strength(area_density, multiplier)
         if tensile_strength_required < max_strength:
-            possible_materials.append((area_density, multiplier, tensile_strength_required))
+            possible_materials.append((area_density, multiplier, tensile_strength_required, radius))
         else:
             pass
 
-print(len(possible_materials))
-
-print(min(possible_materials, key=lambda x: x[2]))
-print(max(possible_materials, key=lambda x: x[2]))
+print(min(possible_materials, key=lambda x: x[3]))
+print(max(possible_materials, key=lambda x: x[3]))
