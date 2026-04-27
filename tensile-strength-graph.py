@@ -45,6 +45,15 @@ between_minmax = (tensile_strength_values >= min_strength) & (tensile_strength_v
 above_max = tensile_strength_values > max_strength
 
 fig, ax = plt.subplots(figsize=(12, 7))
+hover_annotation = ax.annotate(
+    "",
+    xy=(0, 0),
+    xytext=(12, 12),
+    textcoords="offset points",
+    bbox=dict(boxstyle="round,pad=0.25", fc="white", ec="gray", alpha=0.95),
+    fontsize=9,
+)
+hover_annotation.set_visible(False)
 
 ax.axvspan(
     0.0011,
@@ -175,6 +184,45 @@ legend_items = [
     Line2D([0], [0], color="red", lw=2, linestyle="--", label=f"CF upper bound tensile strength ({int(max_strength / 1_000_000)} MPa)"),
 ]
 ax.legend(handles=legend_items, loc="upper right")
+
+
+curve_x = multiplier_values
+curve_y = tensile_strength_values
+
+
+def on_move(event):
+    if event.inaxes != ax or event.xdata is None or event.ydata is None:
+        hover_annotation.set_visible(False)
+        fig.canvas.draw_idle()
+        return
+
+    point_pixels = ax.transData.transform(np.column_stack([curve_x, curve_y]))
+    cursor_pixels = np.array([event.x, event.y])
+    distances = np.hypot(point_pixels[:, 0] - cursor_pixels[0], point_pixels[:, 1] - cursor_pixels[1])
+    nearest_index = int(np.argmin(distances))
+
+    if distances[nearest_index] > 20:
+        hover_annotation.set_visible(False)
+        fig.canvas.draw_idle()
+        return
+
+    nearest_x = curve_x[nearest_index]
+    nearest_y = curve_y[nearest_index]
+    hover_annotation.xy = (nearest_x, nearest_y)
+    hover_annotation.set_text(
+        f"multiplier = {nearest_x:.5f}\nstrength = {nearest_y:.5f} Pa"
+    )
+    hover_annotation.set_visible(True)
+    fig.canvas.draw_idle()
+
+
+def on_leave(_):
+    hover_annotation.set_visible(False)
+    fig.canvas.draw_idle()
+
+
+fig.canvas.mpl_connect("motion_notify_event", on_move)
+fig.canvas.mpl_connect("figure_leave_event", on_leave)
 
 plt.tight_layout()
 plt.show()
