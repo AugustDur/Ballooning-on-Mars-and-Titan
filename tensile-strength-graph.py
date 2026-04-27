@@ -145,7 +145,7 @@ ax.axhline(
     color="red",
     linestyle="--",
     linewidth=2,
-    label=f"Carbon fiber max tensile strength ({max_strength / 1_000_000:.5f} MPa)",
+    label=f"Carbon fiber upper bound tensile strength ({int(max_strength / 1_000_000)} MPa)",
 )
 
 ax.axhline(
@@ -153,7 +153,7 @@ ax.axhline(
     color="gold",
     linestyle="--",
     linewidth=2,
-    label=f"Carbon fiber min tensile strength ({min_strength / 1_000_000:.5f} MPa)",
+    label=f"Carbon fiber lower bound tensile strength ({int(min_strength / 1_000_000)} MPa)",
 )
 
 ax.set_title("Multiplier vs Required Tensile Strength")
@@ -167,12 +167,12 @@ ax.grid(True, which="both", alpha=0.25)
 ax.xaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:.5f}"))
 
 legend_items = [
-    Line2D([0], [0], marker="o", color="w", markerfacecolor="green", markersize=7, label="Below CF min"),
+    Line2D([0], [0], marker="o", color="w", markerfacecolor="green", markersize=7, label="Below CF lower bound"),
     Line2D([0], [0], marker="o", color="w", markerfacecolor="gold", markersize=7, label="Within CF range"),
-    Line2D([0], [0], marker="^", color="w", markerfacecolor="red", markersize=7, label="Above CF max"),
+    Line2D([0], [0], marker="^", color="w", markerfacecolor="red", markersize=7, label="Above CF upper bound"),
     Line2D([0], [0], color="black", lw=2.2, label="Trendline"),
-    Line2D([0], [0], color="gold", lw=2, linestyle="--", label=f"CF min tensile strength ({min_strength / 1_000_000:.5f} MPa)"),
-    Line2D([0], [0], color="red", lw=2, linestyle="--", label=f"CF max tensile strength ({max_strength / 1_000_000:.5f} MPa)"),
+    Line2D([0], [0], color="gold", lw=2, linestyle="--", label=f"CF lower bound tensile strength ({int(min_strength / 1_000_000)} MPa)"),
+    Line2D([0], [0], color="red", lw=2, linestyle="--", label=f"CF upper bound tensile strength ({int(max_strength / 1_000_000)} MPa)"),
 ]
 ax.legend(handles=legend_items, loc="upper right")
 
