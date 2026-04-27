@@ -56,7 +56,7 @@ def rebuild_balloon_values():
     }
 
     mass = constants["lambda"] * balloon["As"] + constants["rhog"] * balloon["Vol"]
-    v_terminal = (2 * constants["g"] * (mass + constants["rho"] * balloon["Vol"]) / (constants["Cd"] * constants["rho"] * balloon["Ax"])) ** 0.5
+    v_terminal = (2 * (constants["rho"] * balloon["Vol"] - mass) * constants["g"] / (constants["Cd"] * constants["rho"] * balloon["Ax"])) ** 0.5
 
 
 rebuild_balloon_values()
@@ -75,6 +75,7 @@ def simulate(max_time, step):
     velocity = 0
     time_points = [0]
     velocity_points = [velocity]
+    acceleration_points = [solve_acceleration(velocity)]
 
     for i in range(int(max_time / step)):
         acceleration = solve_acceleration(velocity)
@@ -82,8 +83,17 @@ def simulate(max_time, step):
         time = (i + 1) * step
         time_points.append(time)
         velocity_points.append(velocity)
+        acceleration_points.append(solve_acceleration(velocity))
 
-    return time_points, velocity_points
+    return time_points, velocity_points, acceleration_points
+
+
+def find_time_to_terminal_velocity(time_points, velocity_points, tolerance=0.01):
+    for time, velocity in zip(time_points, velocity_points):
+        if abs(velocity - v_terminal) <= tolerance:
+            return time, velocity
+
+    return time_points[-1], velocity_points[-1]
 
 
 def main():
@@ -91,13 +101,24 @@ def main():
     plt.subplots_adjust(left=0.10, bottom=0.40)
 
     (velocity_line,) = ax.plot([], [], color="tab:blue", linewidth=2, label="Velocity")
+    (acceleration_line,) = ax.plot([], [], color="tab:green", linewidth=2, label="Acceleration")
+    terminal_point = ax.scatter([], [], s=90, color="purple", edgecolors="black", zorder=6, label="Time to terminal velocity")
     terminal_line = ax.axhline(0, color="tab:red", linestyle=":", linewidth=2, label="Terminal velocity")
+    hover_annotation = ax.annotate(
+        "",
+        xy=(0, 0),
+        xytext=(12, 12),
+        textcoords="offset points",
+        bbox=dict(boxstyle="round,pad=0.25", fc="white", ec="gray", alpha=0.95),
+        fontsize=9,
+    )
+    hover_annotation.set_visible(False)
 
     ax.set_xlabel("Time (s)")
-    ax.set_ylabel("Velocity (m/s)")
-    ax.set_title("Velocity vs Time")
+    ax.set_ylabel("Velocity (m/s) / Acceleration (m/s²)")
+    ax.set_title("Velocity and Acceleration vs Time")
     ax.grid(True)
-    ax.legend(loc="upper right")
+    ax.legend(loc="lower right")
 
     lambda_ax = fig.add_axes([0.12, 0.30, 0.76, 0.03])
     cd_ax = fig.add_axes([0.12, 0.24, 0.76, 0.03])
@@ -150,23 +171,81 @@ def main():
     m_ax.set_xticklabels(["Hydrogen\n0.002", "Helium\n0.004"])
     m_ax.tick_params(axis="x", labelsize=8)
 
+    current_time_points = []
+    current_velocity_points = []
+    current_acceleration_points = []
+
+    def on_move(event):
+        if event.inaxes != ax or not current_time_points or event.ydata is None:
+            hover_annotation.set_visible(False)
+            fig.canvas.draw_idle()
+            return
+
+        x = event.xdata
+        if x is None:
+            hover_annotation.set_visible(False)
+            fig.canvas.draw_idle()
+            return
+
+        nearest_index = min(range(len(current_time_points)), key=lambda i: abs(current_time_points[i] - x))
+        time_value = current_time_points[nearest_index]
+        velocity_value = current_velocity_points[nearest_index]
+        acceleration_value = current_acceleration_points[nearest_index]
+
+        y_velocity = velocity_value
+        y_acceleration = acceleration_value
+        y_span = max(max(current_velocity_points), max(current_acceleration_points)) - min(min(current_velocity_points), min(current_acceleration_points))
+        tolerance = max(0.01, 0.03 * y_span)
+
+        nearest_distance = min(abs(event.ydata - y_velocity), abs(event.ydata - y_acceleration))
+        if nearest_distance > tolerance:
+            hover_annotation.set_visible(False)
+            fig.canvas.draw_idle()
+            return
+
+        if abs(event.ydata - y_velocity) <= abs(event.ydata - y_acceleration):
+            hover_text = f"t = {time_value:.3f} s\nv = {velocity_value:.3f} m/s"
+            hover_xy = (time_value, velocity_value)
+        else:
+            hover_text = f"t = {time_value:.3f} s\na = {acceleration_value:.3f} m/s²"
+            hover_xy = (time_value, acceleration_value)
+
+        hover_annotation.xy = hover_xy
+        hover_annotation.set_text(hover_text)
+        hover_annotation.set_visible(True)
+        fig.canvas.draw_idle()
+
+    def on_leave(_):
+        hover_annotation.set_visible(False)
+        fig.canvas.draw_idle()
+
     def update(_):
+        nonlocal current_time_points, current_velocity_points, current_acceleration_points
+
         constants["lambda"] = lambda_slider.val
         constants["Cd"] = cd_slider.val
         constants["M"] = m_slider.val
         rebuild_balloon_values()
 
-        time_points, velocity_points = simulate(
+        time_points, velocity_points, acceleration_points = simulate(
             max_time_slider.val,
             step_slider.val,
         )
+        terminal_time, terminal_velocity = find_time_to_terminal_velocity(time_points, velocity_points)
+
+        current_time_points = time_points
+        current_velocity_points = velocity_points
+        current_acceleration_points = acceleration_points
 
         velocity_line.set_data(time_points, velocity_points)
+        acceleration_line.set_data(time_points, acceleration_points)
         terminal_line.set_ydata([v_terminal, v_terminal])
+        terminal_point.set_offsets([[terminal_time, terminal_velocity]])
+        terminal_point.set_label(f"time-to-terminal-velocity = {terminal_time:.3f} s")
 
         x_min, x_max = min(time_points), max(time_points)
-        y_min = min(min(velocity_points), v_terminal)
-        y_max = max(max(velocity_points), v_terminal)
+        y_min = min(min(velocity_points), min(acceleration_points), v_terminal)
+        y_max = max(max(velocity_points), max(acceleration_points), v_terminal)
 
         if y_max == y_min:
             y_padding = 1.0
@@ -175,7 +254,7 @@ def main():
 
         ax.set_xlim(x_min, x_max)
         ax.set_ylim(y_min - y_padding, y_max + y_padding)
-        ax.legend(loc="upper right")
+        ax.legend(loc="lower right")
         fig.canvas.draw_idle()
 
     lambda_slider.on_changed(update)
@@ -183,6 +262,8 @@ def main():
     m_slider.on_changed(update)
     max_time_slider.on_changed(update)
     step_slider.on_changed(update)
+    fig.canvas.mpl_connect("motion_notify_event", on_move)
+    fig.canvas.mpl_connect("figure_leave_event", on_leave)
 
     update(None)
 
