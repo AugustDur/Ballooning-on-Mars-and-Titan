@@ -1,8 +1,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.lines import Line2D
+from matplotlib.ticker import FuncFormatter
 
 max_strength = 7_500_000_000  # Pa, max tensile strength of carbon fiber
+min_strength = 3_500_000_000  # Pa, min tensile strength of carbon fiber
 
 constants = {
     "g": 9.81,  # Gravitational acceleration, m/s^2
@@ -32,62 +34,98 @@ denominator = constants["rhom"] - (
 )
 strength_constant = ((constants["Pe"] - constants["Pm"]) * 3) / (2 * denominator)
 minimum_ratio = strength_constant / max_strength
+min_strength_ratio = strength_constant / min_strength
 
 
 multiplier_values = np.arange(1, 300, dtype=float) / 100000.0
 tensile_strength_values = compute_tensile_strength(multiplier_values)
 
-below_cf = tensile_strength_values <= max_strength
-above_cf = tensile_strength_values > max_strength
+below_min = tensile_strength_values < min_strength
+between_minmax = (tensile_strength_values >= min_strength) & (tensile_strength_values <= max_strength)
+above_max = tensile_strength_values > max_strength
 
 fig, ax = plt.subplots(figsize=(12, 7))
 
+ax.axvspan(
+    0.0011,
+    0.00175,
+    color="gold",
+    alpha=0.10,
+    label="realistic range for high-density carbon fiber composites",
+)
+
 ax.plot(
-    multiplier_values[below_cf],
-    tensile_strength_values[below_cf],
-    color="tab:blue",
+    multiplier_values[below_min],
+    tensile_strength_values[below_min],
+    color="green",
     linewidth=2,
-    label="At or below CF max",
+    label="Below CF min range",
 )
 ax.scatter(
-    multiplier_values[below_cf],
-    tensile_strength_values[below_cf],
+    multiplier_values[below_min],
+    tensile_strength_values[below_min],
     s=18,
     alpha=0.75,
-    c="tab:blue",
+    c="green",
+)
+ax.plot(
+    multiplier_values[between_minmax],
+    tensile_strength_values[between_minmax],
+    color="gold",
+    linewidth=2,
+    label="Within CF range",
 )
 ax.scatter(
-    multiplier_values[above_cf],
-    tensile_strength_values[above_cf],
+    multiplier_values[between_minmax],
+    tensile_strength_values[between_minmax],
+    s=18,
+    alpha=0.75,
+    c="gold",
+)
+ax.scatter(
+    multiplier_values[above_max],
+    tensile_strength_values[above_max],
     s=24,
     alpha=0.85,
-    c="tab:orange",
+    c="red",
     marker="^",
     label="Above CF max",
 )
 
-# Exact point where the curve reaches the carbon-fiber limit.
+# Exact point where the curve reaches the carbon-fiber max limit.
 ax.scatter(
     [minimum_ratio],
     [max_strength],
     s=120,
-    c="gold",
+    c="red",
     edgecolors="black",
     linewidths=1.2,
     zorder=5,
-    label="Threshold point",
+    label="CF max threshold",
 )
 ax.annotate(
     f"multiplier = {minimum_ratio:.5f}"
     + "\n(minimum ratio between thickness and area density)",
     xy=(minimum_ratio, max_strength),
-    xytext=(0.58, 0.82),
+    xytext=(0.58, 0.72),
     textcoords="axes fraction",
     arrowprops=dict(arrowstyle="->", color="black", lw=1.2),
     fontsize=10,
     ha="left",
     va="top",
     bbox=dict(boxstyle="round,pad=0.35", fc="white", ec="gray", alpha=0.95),
+)
+
+# Exact point where the curve reaches the carbon-fiber min limit.
+ax.scatter(
+    [min_strength_ratio],
+    [min_strength],
+    s=120,
+    c="gold",
+    edgecolors="black",
+    linewidths=1.2,
+    zorder=5,
+    label="CF min threshold",
 )
 
 # Trendline: the model is inversely proportional to multiplier, so this curve is the
@@ -107,24 +145,34 @@ ax.axhline(
     color="red",
     linestyle="--",
     linewidth=2,
-    label="Carbon fiber max tensile strength (7.5e9 Pa)",
+    label=f"Carbon fiber max tensile strength ({max_strength / 1_000_000:.5f} MPa)",
+)
+
+ax.axhline(
+    y=min_strength,
+    color="gold",
+    linestyle="--",
+    linewidth=2,
+    label=f"Carbon fiber min tensile strength ({min_strength / 1_000_000:.5f} MPa)",
 )
 
 ax.set_title("Multiplier vs Required Tensile Strength")
 ax.set_xlabel("Multiplier")
 ax.set_ylabel("Required Tensile Strength (Pa)")
-ax.set_xscale("log")
 ax.set_yscale("log")
-ax.set_xlim(multiplier_values.min() * 0.9, multiplier_values.max() * 1.05)
+ax.set_xlim(multiplier_values.min(), multiplier_values.max())
 ax.set_ylim(tensile_strength_values.min() * 0.9, tensile_strength_values.max() * 1.05)
 ax.grid(True, which="both", alpha=0.25)
 
+ax.xaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:.5f}"))
+
 legend_items = [
-    Line2D([0], [0], marker="o", color="w", markerfacecolor="tab:blue", markersize=7, label="At or below CF max"),
-    Line2D([0], [0], marker="^", color="w", markerfacecolor="tab:orange", markersize=7, label="Above CF max"),
-    Line2D([0], [0], marker="o", color="w", markerfacecolor="gold", markeredgecolor="black", markersize=8, label="Threshold point"),
+    Line2D([0], [0], marker="o", color="w", markerfacecolor="green", markersize=7, label="Below CF min"),
+    Line2D([0], [0], marker="o", color="w", markerfacecolor="gold", markersize=7, label="Within CF range"),
+    Line2D([0], [0], marker="^", color="w", markerfacecolor="red", markersize=7, label="Above CF max"),
     Line2D([0], [0], color="black", lw=2.2, label="Trendline"),
-    Line2D([0], [0], color="red", lw=2, linestyle="--", label="CF max tensile strength (7.5e9 Pa)"),
+    Line2D([0], [0], color="gold", lw=2, linestyle="--", label=f"CF min tensile strength ({min_strength / 1_000_000:.5f} MPa)"),
+    Line2D([0], [0], color="red", lw=2, linestyle="--", label=f"CF max tensile strength ({max_strength / 1_000_000:.5f} MPa)"),
 ]
 ax.legend(handles=legend_items, loc="upper right")
 
