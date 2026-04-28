@@ -55,13 +55,11 @@ hover_annotation = ax.annotate(
 )
 hover_annotation.set_visible(False)
 
-ax.axvspan(
-    0.0011,
-    0.00175,
-    color="gold",
-    alpha=0.10,
-    label="realistic range for high-density carbon fiber composites",
-)
+y_min = tensile_strength_values.min() * 0.9
+y_max = tensile_strength_values.max() * 1.05
+ymax_fraction = (np.log10(max_strength) - np.log10(y_min)) / (np.log10(y_max) - np.log10(y_min))
+
+# Marker for realistic range on x-axis - will be added after axes are configured
 
 ax.plot(
     multiplier_values[below_min],
@@ -77,19 +75,12 @@ ax.scatter(
     alpha=0.75,
     c="green",
 )
-ax.plot(
-    multiplier_values[between_minmax],
-    tensile_strength_values[between_minmax],
-    color="gold",
-    linewidth=2,
-    label="Within CF range",
-)
 ax.scatter(
     multiplier_values[between_minmax],
     tensile_strength_values[between_minmax],
     s=18,
     alpha=0.75,
-    c="gold",
+    c="green",
 )
 ax.scatter(
     multiplier_values[above_max],
@@ -125,28 +116,27 @@ ax.annotate(
     bbox=dict(boxstyle="round,pad=0.35", fc="white", ec="gray", alpha=0.95),
 )
 
-# Exact point where the curve reaches the carbon-fiber min limit.
-ax.scatter(
-    [min_strength_ratio],
-    [min_strength],
-    s=120,
-    c="gold",
-    edgecolors="black",
-    linewidths=1.2,
-    zorder=5,
-    label="CF min threshold",
-)
-
 # Trendline: the model is inversely proportional to multiplier, so this curve is the
 # fitted relationship across all points.
 y_trend = np.geomspace(multiplier_values.min(), multiplier_values.max(), 400)
 z_trend = compute_tensile_strength(y_trend)
+
+# Split trendline at max_strength
+below_bound = z_trend <= max_strength
+above_bound = z_trend > max_strength
+
 ax.plot(
-    y_trend,
-    z_trend,
-    color="black",
+    y_trend[below_bound],
+    z_trend[below_bound],
+    color="green",
     linewidth=2.2,
     label="Trendline",
+)
+ax.plot(
+    y_trend[above_bound],
+    z_trend[above_bound],
+    color="red",
+    linewidth=2.2,
 )
 
 ax.axhline(
@@ -157,30 +147,47 @@ ax.axhline(
     label=f"Carbon fiber upper bound tensile strength ({int(max_strength / 1_000_000)} MPa)",
 )
 
-ax.axhline(
-    y=min_strength,
-    color="gold",
-    linestyle="--",
-    linewidth=2,
-    label=f"Carbon fiber lower bound tensile strength ({int(min_strength / 1_000_000)} MPa)",
-)
-
-ax.set_title("Multiplier vs Required Tensile Strength")
-ax.set_xlabel("Multiplier")
-ax.set_ylabel("Required Tensile Strength (Pa)")
+ax.set_title("Tensile Strength of Balloon Material vs Alpha", fontsize=14)
+ax.set_xlabel("Alpha")
+ax.set_ylabel("Stress on Balloon (Pa)")
 ax.set_yscale("log")
 ax.set_xlim(multiplier_values.min(), multiplier_values.max())
 ax.set_ylim(tensile_strength_values.min() * 0.9, tensile_strength_values.max() * 1.05)
 ax.grid(True, which="both", alpha=0.25)
 
+# Add x-axis marker for realistic range (looks like a number line with serifs)
+y_bottom = tensile_strength_values.min() * 0.9
+marker_height = (tensile_strength_values.min() * 0.9) * 0.02
+serif_height = marker_height * 1.5
+
+# Horizontal line
+ax.plot(
+    [0.0011, 0.00175],
+    [y_bottom, y_bottom],
+    color="gold",
+    linewidth=3,
+    clip_on=False,
+    zorder=5,
+)
+
+# Serif marks (vertical lines at boundaries)
+ax.vlines(
+    [0.0011, 0.00175],
+    y_bottom,
+    y_bottom + serif_height,
+    color="gold",
+    linewidth=2.5,
+    clip_on=False,
+    zorder=5,
+)
+
 ax.xaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:.5f}"))
 
 legend_items = [
-    Line2D([0], [0], marker="o", color="w", markerfacecolor="green", markersize=7, label="Below CF lower bound"),
-    Line2D([0], [0], marker="o", color="w", markerfacecolor="gold", markersize=7, label="Within CF range"),
+    Line2D([0], [0], marker="o", color="w", markerfacecolor="green", markersize=7, label="Within CF range"),
     Line2D([0], [0], marker="^", color="w", markerfacecolor="red", markersize=7, label="Above CF upper bound"),
     Line2D([0], [0], color="black", lw=2.2, label="Trendline"),
-    Line2D([0], [0], color="gold", lw=2, linestyle="--", label=f"CF lower bound tensile strength ({int(min_strength / 1_000_000)} MPa)"),
+    Line2D([0], [0], color="gold", lw=3, label="realistic range for high-density carbon fiber composites"),
     Line2D([0], [0], color="red", lw=2, linestyle="--", label=f"CF upper bound tensile strength ({int(max_strength / 1_000_000)} MPa)"),
 ]
 ax.legend(handles=legend_items, loc="upper right")
